@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visora Top Issues Assistant</title>
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body>
+  <div id="app">
+    <h1>Top Issues Assistant</h1>
+    <p>Agentic workflow for remediation planning. This assistant expands your scan into root-cause diagnosis, fix steps, and validation suggestions.</p>
+
+    <section class="panel" id="scan-summary"></section>
+
+    <section class="panel">
+      <h2>Remediation Workflow</h2>
+      <ol>
+        <li>Prioritize blockers by citation and crawl impact</li>
+        <li>Apply fix patterns by issue type</li>
+        <li>Validate with recrawl and quality checks</li>
+      </ol>
+    </section>
+
+    <section class="panel" id="issue-playbooks">
+      <h2>Detailed Fix Playbooks</h2>
+      <div id="playbook-list"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Feature Roadmap</h2>
+      <p>
+        Upcoming paid tier will include automated multi-page fixes, weekly monitor jobs, and an AI-assisted implementation copilot for engineering teams.
+      </p>
+    </section>
+
+    <a class="assistant-link" href="index.html">Back to Scanner</a>
+  </div>
+
+  <script src="assets/js/assistant.js"></script>
+</body>
+</html>

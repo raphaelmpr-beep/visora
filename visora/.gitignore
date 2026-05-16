@@ -1,0 +1,17 @@
+# Secrets — NEVER commit
+.env
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-lock.yaml
+package-lock.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build outputs
+dist/

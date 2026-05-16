@@ -1,0 +1,43 @@
+<!-- admin.html — Visora Admin Panel -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visora Admin Panel</title>
+  <link rel="stylesheet" href="assets/css/styles.css">
+  <style>
+    #admin-panel { max-width: 480px; margin: 40px auto; background: #23262f; border-radius: 16px; box-shadow: 0 4px 32px #000a; padding: 32px 24px; }
+    #admin-panel label { display: block; margin-top: 18px; font-weight: 600; }
+    #admin-panel input[type="text"] { width: 100%; margin: 8px 0 0 0; }
+    #admin-panel button { margin-top: 24px; width: 100%; }
+    #admin-panel .status { margin-top: 16px; font-size: 1rem; }
+  </style>
+</head>
+<body>
+  <div id="admin-panel">
+    <h2>Admin Settings</h2>
+    <p>Update keys only when needed. Leave any key field blank to keep the current server value.</p>
+    <form id="admin-form">
+      <label for="pagespeed">Google PageSpeed API Key</label>
+      <input type="text" id="pagespeed" name="pagespeed" placeholder="PAGESPEED_API_KEY">
+      <label for="bing">Bing Webmaster API Key</label>
+      <input type="text" id="bing" name="bing" placeholder="BING_WEBMASTER_API_KEY">
+      <label for="etsy">Etsy API Key</label>
+      <input type="text" id="etsy" name="etsy" placeholder="ETSY_API_KEY">
+      <label for="port">Server Port</label>
+      <input type="text" id="port" name="port" placeholder="PORT" value="4173">
+      <label for="rate-limit">Daily Scan Limit (per user/IP)</label>
+      <input type="number" id="rate-limit" name="rate-limit" min="1" value="5">
+      <label for="rate-enabled">
+        <input type="checkbox" id="rate-enabled" name="rate-enabled" checked>
+        Enable Rate Limiting
+      </label>
+      <button type="submit">Save Settings</button>
+      <div class="status" id="status"></div>
+    </form>
+  </div>
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/admin.js"></script>
+</body>
+</html>
