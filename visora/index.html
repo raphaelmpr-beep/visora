@@ -1,1 +1,111 @@
-999 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 99100101102103104105106107108109110111112<!DOCTYPE html>      <button class="platform-btn active" data-platform="web" type="button" role="tab" aria-selected="true">Website</button>      <button class="platform-btn" data-platform="shopify" type="button" role="tab" aria-selected="false">Shopify</button>      <button class="platform-btn" data-platform="etsy" type="button" role="tab" aria-selected="false">Etsy</button>    </div>    <section class="scan-panel">      <div class="scan-row">        <span class="search-icon" aria-hidden="true">          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"></circle><path d="m20 20-4-4" fill="none" stroke="currentColor" stroke-width="2"></path></svg>        </span>        <input id="url-input" type="text" placeholder="https://yourstore.com" autocomplete="off">        <button id="run-scan" type="button">Run Scan</button>      </div>      <p id="platform-hint" class="platform-hint">Enter any website URL - blog, SaaS, portfolio, landing page.</p>    </section>    <div class="trust-strip plain-strip">      <span>Google Search Central</span>      <span>Bing Webmaster Tools</span>      <span>ChatGPT Search</span>      <span>Microsoft Clarity</span>      <span>PageSpeed Insights</span>    </div>    <p class="trust-note">Methodology references public technical documentation. Source names indicate standards alignment, not endorsement.</p>    <section class="promo-grid">      <article class="promo-card">        <h2>Why this matters</h2>        <p>AI search is reshaping how users discover content. If you are not visible, you are losing traffic silently.</p>      </article>      <article class="promo-card">        <h2>What you get</h2>        <p>A clear visibility score, pillar breakdown, and prioritized fixes tailored to AI search.</p>      </article>      <article class="promo-card">        <h2>Why subscribe</h2>        <p>Track over time, monitor competitors, and get alerts when your visibility drops.</p>      </article>    </section>    <section id="results" aria-live="polite"></section>    <footer class="hero-footer">      <a class="assistant-link" href="updates.html">Open Suggested Updates</a>      <a class="assistant-link" href="admin.html">Admin Settings</a>    </footer>  </main>  <script src="assets/js/config.js?v=3"></script>  <script src="assets/js/runtime-config.js?v=1"></script>  <script src="assets/js/apis.js?v=3"></script>  <script src="assets/js/app.js?v=4"></script></body></html>Use Control + Shift + m to toggle the tab key moving focus. Alternatively, use esc then tab to move to the next interactive element on the page.
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visora.ai â€” AI Visibility Observatory</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/styles.css?v=2">
+</head>
+<body>
+  <header class="top-nav">
+    <div class="brand-wrap">
+      <span class="brand-logo" aria-hidden="true">
+        <svg viewBox="0 0 48 48" role="img">
+          <defs>
+            <linearGradient id="logoGrad" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0%" stop-color="#2ce6c9"></stop>
+              <stop offset="100%" stop-color="#0ea5e9"></stop>
+            </linearGradient>
+          </defs>
+          <rect x="1" y="1" width="46" height="46" rx="12" fill="none" stroke="url(#logoGrad)" stroke-width="2"></rect>
+          <circle cx="24" cy="24" r="10" fill="none" stroke="url(#logoGrad)" stroke-width="2"></circle>
+          <circle cx="24" cy="24" r="2.5" fill="#31e6cf"></circle>
+          <circle cx="24" cy="8" r="2.2" fill="#31e6cf"></circle>
+          <circle cx="38" cy="24" r="2.2" fill="#31e6cf"></circle>
+          <circle cx="24" cy="40" r="2.2" fill="#31e6cf"></circle>
+          <circle cx="10" cy="24" r="2.2" fill="#31e6cf"></circle>
+        </svg>
+      </span>
+      <a class="brand-text" href="index.html">Visora<span>.ai</span></a>
+      <span class="badge-live">Live Demo</span>
+    </div>
+
+    <nav class="nav-links" aria-label="Primary">
+      <a href="#">Dashboard</a>
+      <a href="#">Scans</a>
+      <a href="#">Compare</a>
+      <a href="#">Alerts</a>
+      <a href="#">Pricing</a>
+      <a href="#">Docs</a>
+    </nav>
+
+    <div class="nav-actions">
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle theme">â˜¾</button>
+      <button class="theme-toggle" type="button" aria-label="Brightness">â˜¼</button>
+      <span class="avatar-pill">JD</span>
+    </div>
+  </header>
+
+  <main id="app" class="hero-shell">
+    <p class="eyebrow">AI Visibility Observatory</p>
+    <h1>See if your website is <span>visible</span> to<br>Google AI, Bing Copilot, and ChatGPT Search</h1>
+    <p class="hero-copy">We analyze how discoverable, crawlable, and citable your site is across AI-powered search experiences, then show you exactly what to fix.</p>
+
+    <div class="platform-toggle" role="tablist" aria-label="Platform selector">
+      <button class="platform-btn active" data-platform="web" type="button" role="tab" aria-selected="true">Website</button>
+      <button class="platform-btn" data-platform="shopify" type="button" role="tab" aria-selected="false">Shopify</button>
+      <button class="platform-btn" data-platform="etsy" type="button" role="tab" aria-selected="false">Etsy</button>
+    </div>
+
+    <section class="scan-panel">
+      <div class="scan-row">
+        <span class="search-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"></circle><path d="m20 20-4-4" fill="none" stroke="currentColor" stroke-width="2"></path></svg>
+        </span>
+        <input id="url-input" type="text" placeholder="https://yourstore.com" autocomplete="off">
+        <button id="run-scan" type="button">Run Scan</button>
+      </div>
+      <p id="platform-hint" class="platform-hint">Enter any website URL - blog, SaaS, portfolio, landing page.</p>
+    </section>
+
+    <div class="trust-strip plain-strip">
+      <span>Google Search Central</span>
+      <span>Bing Webmaster Tools</span>
+      <span>ChatGPT Search</span>
+      <span>Microsoft Clarity</span>
+      <span>PageSpeed Insights</span>
+    </div>
+    <p class="trust-note">Methodology references public technical documentation. Source names indicate standards alignment, not endorsement.</p>
+
+    <section class="promo-grid">
+      <article class="promo-card">
+        <h2>Why this matters</h2>
+        <p>AI search is reshaping how users discover content. If you are not visible, you are losing traffic silently.</p>
+      </article>
+      <article class="promo-card">
+        <h2>What you get</h2>
+        <p>A clear visibility score, pillar breakdown, and prioritized fixes tailored to AI search.</p>
+      </article>
+      <article class="promo-card">
+        <h2>Why subscribe</h2>
+        <p>Track over time, monitor competitors, and get alerts when your visibility drops.</p>
+      </article>
+    </section>
+
+    <section id="results" aria-live="polite"></section>
+
+    <footer class="hero-footer">
+      <a class="assistant-link" href="updates.html">Open Suggested Updates</a>
+      <a class="assistant-link" href="admin.html">Admin Settings</a>
+    </footer>
+  </main>
+
+  <script src="assets/js/config.js?v=3"></script>
+  <script src="assets/js/runtime-config.js?v=1"></script>
+  <script src="assets/js/apis.js?v=3"></script>
+  <script src="assets/js/app.js?v=4"></script>
+</body>
+</html>
