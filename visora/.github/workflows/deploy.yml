@@ -1,19 +1,24 @@
 # .github/workflows/deploy.yml — GitHub Actions for Pages
-ame: Deploy to GitHub Pages
+name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-      - name: Upload static site
-        uses: actions/upload-pages-artifact@v3
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
         with:
-          path: ./
+          node-version: '16'
+      - name: Install dependencies
+        run: npm install
+      - name: Build project
+        run: npm run build
       - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public

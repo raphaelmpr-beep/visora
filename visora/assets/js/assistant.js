@@ -117,7 +117,7 @@ function getPlaybook(issue) {
 }
 
 function render() {
-  const raw = sessionStorage.getItem("visora_last_scan");
+  const raw = localStorage.getItem("visora_last_scan") || sessionStorage.getItem("visora_last_scan");
   if (!raw) {
     summaryEl.innerHTML = "<h2>No Scan Data Found</h2><p>Run a scan first, then open this assistant for detailed remediation guidance.</p>";
     listEl.innerHTML = "";

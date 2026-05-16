@@ -23,13 +23,32 @@ const PLATFORM_CONFIG = {
   }
 };
 
-const IMPACT_PRIORITY = { high: 3, medium: 2, low: 1 };
-const SCORE_MAP = { pass: 1, warn: 0.5, fail: 0, locked: null };
+function scoreFromStatus(status) {
+  if (status === "pass") return 100;
+  if (status === "warn") return 75;
+  if (status === "fail") return 50;
+  return null;
+}
+
+function scoreFromPercent(value) {
+  return Number.isFinite(value) ? Math.max(0, Math.min(100, Math.round(value))) : null;
+}
+
 const PILLARS = [
-  { key: "search", name: "Search Foundation", weight: 0.4, className: "search" },
-  { key: "ai", name: "AI Visibility", weight: 0.4, className: "ai" },
-  { key: "ux", name: "UX Instrumentation", weight: 0.2, className: "ux" }
+  { key: "search", weight: 0.4 },
+  { key: "ai", weight: 0.4 },
+  { key: "ux", weight: 0.2 }
 ];
+
+const IMPACT_PRIORITY = { high: 3, medium: 2, low: 1 };
+
+const TOP_SITE_BASELINE = {
+  performance: { pass: 60, warn: 40 },
+  seo: { pass: 92, warn: 85 },
+  accessibility: { pass: 90, warn: 80 },
+  bestPractices: { pass: 90, warn: 75 },
+  lcpMs: { pass: 1800, warn: 2500 }
+};
 
 let currentPlatform = "web";
 let scanCount = 249;
@@ -46,7 +65,7 @@ function escapeHtml(value) {
 function normalizeHttpUrl(raw) {
   const candidate = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
   const parsed = new URL(candidate);
-  if (!["http:", "https:"].includes(parsed.protocol)) {
+  if (!parsed.protocol.startsWith("http")) {
     throw new Error("Invalid URL protocol.");
   }
   return parsed.toString();
@@ -63,7 +82,6 @@ function extractShopifyDomain(raw) {
 
 function extractEtsyShop(raw) {
   const cleaned = raw.trim();
-  if (!cleaned) throw new Error("Enter a valid Etsy shop.");
   if (/etsy\.com\/shop\//i.test(cleaned)) {
     const normalized = cleaned.replace(/^https?:\/\//i, "");
     const match = normalized.match(/etsy\.com\/shop\/([^/?#]+)/i);
@@ -75,8 +93,12 @@ function extractEtsyShop(raw) {
 function setPlatform(platform) {
   currentPlatform = platform;
   const config = PLATFORM_CONFIG[platform];
-  urlInput.placeholder = config.placeholder;
-  platformHintEl.textContent = config.hint;
+  if (urlInput) {
+    urlInput.placeholder = config.placeholder;
+  }
+  if (platformHintEl) {
+    platformHintEl.textContent = config.hint;
+  }
 
   platformButtons.forEach((button) => {
     const active = button.dataset.platform === platform;
@@ -96,13 +118,17 @@ function resolveInput(platform, raw) {
     return { displayTarget: shop, url: `https://${shop}`, shop, etsyShop: null };
   }
 
-  const etsyShop = extractEtsyShop(raw);
-  return {
-    displayTarget: etsyShop,
-    url: `https://www.etsy.com/shop/${encodeURIComponent(etsyShop)}`,
-    shop: null,
-    etsyShop
-  };
+  if (platform === "etsy") {
+    const etsyShop = extractEtsyShop(raw);
+    return {
+      displayTarget: etsyShop,
+      url: `https://www.etsy.com/shop/${encodeURIComponent(etsyShop)}`,
+      shop: null,
+      etsyShop
+    };
+  }
+
+  throw new Error("Unsupported platform.");
 }
 
 function getRuleLibrary() {
@@ -112,47 +138,124 @@ function getRuleLibrary() {
       title: "Unique document title",
       pillar: "search",
       source: "google",
-      evaluate: (ctx) => ({
-        status: ctx.web.ps?.hasDocTitle ? "pass" : "fail",
-        impact: "high",
-        detail: "Title tags help AI and search engines classify intent."
-      })
+      evaluate: (ctx) => {
+        if (ctx.web.ps?.hasDocTitle == null) {
+          return { status: "locked", impact: "high", detail: "Title tag data unavailable.", score: null };
+        }
+        const pass = Boolean(ctx.web.ps.hasDocTitle);
+        return {
+          status: pass ? "pass" : "fail",
+          impact: "high",
+          detail: "Title tags help AI and search engines classify intent.",
+          score: scoreFromStatus(pass ? "pass" : "fail")
+        };
+      }
     },
     {
       id: "meta-description",
       title: "Meta description present",
       pillar: "search",
       source: "google",
-      evaluate: (ctx) => ({
-        status: ctx.web.ps?.hasMetaDesc ? "pass" : "warn",
-        impact: "medium",
-        detail: "Descriptions improve snippet quality in search surfaces."
-      })
+      evaluate: (ctx) => {
+        if (ctx.web.ps?.hasMetaDesc == null) {
+          return { status: "locked", impact: "medium", detail: "Meta description data unavailable.", score: null };
+        }
+        const pass = Boolean(ctx.web.ps.hasMetaDesc);
+        return {
+          status: pass ? "pass" : "warn",
+          impact: "medium",
+          detail: "Descriptions improve snippet quality in search surfaces.",
+          score: scoreFromStatus(pass ? "pass" : "warn")
+        };
+      }
     },
     {
       id: "canonical",
       title: "Canonical URL configured",
       pillar: "search",
       source: "google",
-      evaluate: (ctx) => ({
-        status: ctx.web.ps?.canonicalPresent ? "pass" : "warn",
-        impact: "medium",
-        detail: "Canonicals consolidate duplicate URL signals."
-      })
+      evaluate: (ctx) => {
+        if (ctx.web.ps?.canonicalPresent == null) {
+          return { status: "locked", impact: "medium", detail: "Canonical data unavailable.", score: null };
+        }
+        const pass = Boolean(ctx.web.ps.canonicalPresent);
+        return {
+          status: pass ? "pass" : "warn",
+          impact: "medium",
+          detail: "Canonicals consolidate duplicate URL signals.",
+          score: scoreFromStatus(pass ? "pass" : "warn")
+        };
+      }
     },
     {
-      id: "html-valid",
-      title: "HTML validation health",
-      pillar: "search",
+      id: "viewport",
+      title: "Mobile viewport",
+      pillar: "ux",
+      source: "google",
+      evaluate: (ctx) => {
+        if (ctx.web.ps?.hasViewport == null) {
+          return { status: "locked", impact: "high", detail: "Viewport data unavailable.", score: null };
+        }
+        const pass = Boolean(ctx.web.ps.hasViewport);
+        return {
+          status: pass ? "pass" : "fail",
+          impact: "high",
+          detail: "Viewport configuration is required for mobile-first rendering.",
+          score: scoreFromStatus(pass ? "pass" : "fail")
+        };
+      }
+    },
+    {
+      id: "tap-targets",
+      title: "Tap target sizing",
+      pillar: "ux",
       source: "w3c",
       evaluate: (ctx) => {
-        const count = ctx.web.w3c?.errorCount ?? 0;
-        const status = count === 0 ? "pass" : count <= 5 ? "warn" : "fail";
-        const impact = count > 5 ? "high" : "medium";
+        if (ctx.web.ps?.tapTargets == null) {
+          return { status: "locked", impact: "medium", detail: "Tap target data unavailable.", score: null };
+        }
+        const pass = Boolean(ctx.web.ps.tapTargets);
         return {
-          status,
-          impact,
-          detail: `${count} validator errors detected.`
+          status: pass ? "pass" : "warn",
+          impact: "medium",
+          detail: "Tap targets should be large and spaced for touch usage.",
+          score: scoreFromStatus(pass ? "pass" : "warn")
+        };
+      }
+    },
+    {
+      id: "image-alt",
+      title: "Image alt semantics",
+      pillar: "ux",
+      source: "w3c",
+      evaluate: (ctx) => {
+        if (ctx.web.ps?.imagesHaveAlt == null) {
+          return { status: "locked", impact: "medium", detail: "Image alt data unavailable.", score: null };
+        }
+        const pass = Boolean(ctx.web.ps.imagesHaveAlt);
+        return {
+          status: pass ? "pass" : "warn",
+          impact: "medium",
+          detail: "Alt text improves assistive reading and model understanding.",
+          score: scoreFromStatus(pass ? "pass" : "warn")
+        };
+      }
+    },
+    {
+      id: "links-descriptive",
+      title: "Descriptive links",
+      pillar: "ux",
+      source: "google",
+      evaluate: (ctx) => {
+        if (ctx.web.ps?.linksDescriptive == null) {
+          return { status: "locked", impact: "low", detail: "Link text data unavailable.", score: null };
+        }
+        const pass = Boolean(ctx.web.ps.linksDescriptive);
+        return {
+          status: pass ? "pass" : "warn",
+          impact: "low",
+          detail: "Clear link text strengthens context extraction.",
+          score: scoreFromStatus(pass ? "pass" : "warn")
         };
       }
     },
@@ -161,66 +264,36 @@ function getRuleLibrary() {
       title: "Structured data available",
       pillar: "ai",
       source: "google",
-      evaluate: (ctx) => ({
-        status: ctx.web.ps?.structuredData ? "pass" : "fail",
-        impact: "high",
-        detail: "Schema improves machine readability and rich result eligibility."
-      })
+      evaluate: (ctx) => {
+        if (ctx.web.ps?.structuredData == null) {
+          return { status: "locked", impact: "high", detail: "Structured data unavailable.", score: null };
+        }
+        const pass = Boolean(ctx.web.ps.structuredData);
+        return {
+          status: pass ? "pass" : "fail",
+          impact: "high",
+          detail: "Schema improves machine readability and rich result eligibility.",
+          score: scoreFromStatus(pass ? "pass" : "fail")
+        };
+      }
     },
     {
       id: "indexnow",
       title: "IndexNow signaling",
       pillar: "ai",
       source: "bing",
-      evaluate: (ctx) => ({
-        status: ctx.web.bing?.implemented ? "pass" : "warn",
-        impact: "medium",
-        detail: "Fast URL submission improves recrawl speed for changes."
-      })
-    },
-    {
-      id: "viewport",
-      title: "Mobile viewport",
-      pillar: "ux",
-      source: "google",
-      evaluate: (ctx) => ({
-        status: ctx.web.ps?.hasViewport ? "pass" : "fail",
-        impact: "high",
-        detail: "Viewport configuration is required for mobile-first rendering."
-      })
-    },
-    {
-      id: "tap-targets",
-      title: "Tap target sizing",
-      pillar: "ux",
-      source: "w3c",
-      evaluate: (ctx) => ({
-        status: ctx.web.ps?.tapTargets ? "pass" : "warn",
-        impact: "medium",
-        detail: "Tap targets should be large and spaced for touch usage."
-      })
-    },
-    {
-      id: "image-alt",
-      title: "Image alt semantics",
-      pillar: "ux",
-      source: "w3c",
-      evaluate: (ctx) => ({
-        status: ctx.web.ps?.imagesHaveAlt ? "pass" : "warn",
-        impact: "medium",
-        detail: "Alt text improves assistive reading and model understanding."
-      })
-    },
-    {
-      id: "links-descriptive",
-      title: "Descriptive links",
-      pillar: "ux",
-      source: "google",
-      evaluate: (ctx) => ({
-        status: ctx.web.ps?.linksDescriptive ? "pass" : "warn",
-        impact: "low",
-        detail: "Clear link text strengthens context extraction."
-      })
+      evaluate: (ctx) => {
+        if (ctx.web.bing?.implemented == null) {
+          return { status: "locked", impact: "medium", detail: "IndexNow data unavailable.", score: null };
+        }
+        const pass = Boolean(ctx.web.bing.implemented);
+        return {
+          status: pass ? "pass" : "warn",
+          impact: "medium",
+          detail: "Fast URL submission improves recrawl speed for changes.",
+          score: scoreFromStatus(pass ? "pass" : "warn")
+        };
+      }
     },
     {
       id: "seo-score",
@@ -228,11 +301,16 @@ function getRuleLibrary() {
       pillar: "search",
       source: "google",
       evaluate: (ctx) => {
-        const value = Math.round((ctx.web.ps?.seoScore ?? 0) * 100);
+        const raw = ctx.web.ps?.seoScore;
+        if (raw == null) {
+          return { status: "locked", impact: "high", detail: "Lighthouse SEO score unavailable.", score: null };
+        }
+        const value = Math.round(raw * 100);
         return {
-          status: value >= 90 ? "pass" : value >= 70 ? "warn" : "fail",
+          status: value >= TOP_SITE_BASELINE.seo.pass ? "pass" : value >= TOP_SITE_BASELINE.seo.warn ? "warn" : "fail",
           impact: "high",
-          detail: `Lighthouse SEO score is ${value}/100.`
+          detail: `Lighthouse SEO score is ${value}/100.`,
+          score: scoreFromPercent(value)
         };
       }
     },
@@ -242,11 +320,16 @@ function getRuleLibrary() {
       pillar: "ux",
       source: "w3c",
       evaluate: (ctx) => {
-        const value = Math.round((ctx.web.ps?.accessibilityScore ?? 0) * 100);
+        const raw = ctx.web.ps?.accessibilityScore;
+        if (raw == null) {
+          return { status: "locked", impact: "medium", detail: "Lighthouse accessibility score unavailable.", score: null };
+        }
+        const value = Math.round(raw * 100);
         return {
-          status: value >= 90 ? "pass" : value >= 70 ? "warn" : "fail",
+          status: value >= TOP_SITE_BASELINE.accessibility.pass ? "pass" : value >= TOP_SITE_BASELINE.accessibility.warn ? "warn" : "fail",
           impact: "medium",
-          detail: `Accessibility score is ${value}/100.`
+          detail: `Accessibility score is ${value}/100.`,
+          score: scoreFromPercent(value)
         };
       }
     },
@@ -256,11 +339,16 @@ function getRuleLibrary() {
       pillar: "ux",
       source: "google",
       evaluate: (ctx) => {
-        const value = Math.round((ctx.web.ps?.performanceScore ?? 0) * 100);
+        const raw = ctx.web.ps?.performanceScore;
+        if (raw == null) {
+          return { status: "locked", impact: "medium", detail: "Lighthouse performance score unavailable.", score: null };
+        }
+        const value = Math.round(raw * 100);
         return {
-          status: value >= 80 ? "pass" : value >= 50 ? "warn" : "fail",
+          status: value >= TOP_SITE_BASELINE.performance.pass ? "pass" : value >= TOP_SITE_BASELINE.performance.warn ? "warn" : "fail",
           impact: "medium",
-          detail: `Performance score is ${value}/100.`
+          detail: `Performance score is ${value}/100.`,
+          score: scoreFromPercent(value)
         };
       }
     },
@@ -270,11 +358,16 @@ function getRuleLibrary() {
       pillar: "search",
       source: "google",
       evaluate: (ctx) => {
-        const value = Math.round((ctx.web.ps?.bestPracticesScore ?? 0) * 100);
+        const raw = ctx.web.ps?.bestPracticesScore;
+        if (raw == null) {
+          return { status: "locked", impact: "low", detail: "Lighthouse best-practices score unavailable.", score: null };
+        }
+        const value = Math.round(raw * 100);
         return {
-          status: value >= 85 ? "pass" : value >= 65 ? "warn" : "fail",
+          status: value >= TOP_SITE_BASELINE.bestPractices.pass ? "pass" : value >= TOP_SITE_BASELINE.bestPractices.warn ? "warn" : "fail",
           impact: "low",
-          detail: `Best-practices score is ${value}/100.`
+          detail: `Best-practices score is ${value}/100.`,
+          score: scoreFromPercent(value)
         };
       }
     },
@@ -284,14 +377,15 @@ function getRuleLibrary() {
       pillar: "ux",
       source: "google",
       evaluate: (ctx) => {
-        const lcp = ctx.web.ps?.lcp?.percentile ?? null;
+        const lcp = ctx.web.ps?.lcp?.percentile != null ? ctx.web.ps.lcp.percentile : null;
         if (!lcp) {
-          return { status: "locked", impact: "low", detail: "No CrUX LCP data available." };
+          return { status: "locked", impact: "low", detail: "No CrUX LCP data available.", score: null };
         }
         return {
-          status: lcp <= 2500 ? "pass" : lcp <= 4000 ? "warn" : "fail",
+          status: lcp <= TOP_SITE_BASELINE.lcpMs.pass ? "pass" : lcp <= TOP_SITE_BASELINE.lcpMs.warn ? "warn" : "fail",
           impact: "medium",
-          detail: `LCP percentile is ${Math.round(lcp)}ms.`
+          detail: `LCP percentile is ${Math.round(lcp)}ms.`,
+          score: lcp <= TOP_SITE_BASELINE.lcpMs.pass ? 100 : lcp <= TOP_SITE_BASELINE.lcpMs.warn ? 75 : 50
         };
       }
     },
@@ -302,13 +396,14 @@ function getRuleLibrary() {
       source: "shopify",
       evaluate: (ctx) => {
         if (ctx.platform !== "shopify") {
-          return { status: "locked", impact: "low", detail: "Shopify-only rule." };
+          return { status: "locked", impact: "low", detail: "Shopify-only rule.", score: null };
         }
         const pass = ctx.shopify?.hasAboutPage && ctx.shopify?.hasContactPage;
         return {
           status: pass ? "pass" : "fail",
           impact: "high",
-          detail: "About and Contact pages build trust for shoppers and crawlers."
+          detail: "About and Contact pages build trust for shoppers and crawlers.",
+          score: pass ? 100 : 50
         };
       }
     },
@@ -319,12 +414,14 @@ function getRuleLibrary() {
       source: "shopify",
       evaluate: (ctx) => {
         if (ctx.platform !== "shopify") {
-          return { status: "locked", impact: "low", detail: "Shopify-only rule." };
+          return { status: "locked", impact: "low", detail: "Shopify-only rule.", score: null };
         }
+        const pass = Boolean(ctx.shopify?.hasPolicyPage);
         return {
-          status: ctx.shopify?.hasPolicyPage ? "pass" : "warn",
+          status: pass ? "pass" : "warn",
           impact: "medium",
-          detail: "Policy pages improve buyer confidence and content trust."
+          detail: "Policy pages improve buyer confidence and content trust.",
+          score: scoreFromStatus(pass ? "pass" : "warn")
         };
       }
     },
@@ -335,12 +432,14 @@ function getRuleLibrary() {
       source: "etsy",
       evaluate: (ctx) => {
         if (ctx.platform !== "etsy") {
-          return { status: "locked", impact: "low", detail: "Etsy-only rule." };
+          return { status: "locked", impact: "low", detail: "Etsy-only rule.", score: null };
         }
+        const pass = Boolean(ctx.etsy?.hasAbout);
         return {
-          status: ctx.etsy?.hasAbout ? "pass" : "warn",
+          status: pass ? "pass" : "warn",
           impact: "medium",
-          detail: "About content helps with trust and expertise context."
+          detail: "About content helps with trust and expertise context.",
+          score: scoreFromStatus(pass ? "pass" : "warn")
         };
       }
     },
@@ -351,12 +450,14 @@ function getRuleLibrary() {
       source: "etsy",
       evaluate: (ctx) => {
         if (ctx.platform !== "etsy") {
-          return { status: "locked", impact: "low", detail: "Etsy-only rule." };
+          return { status: "locked", impact: "low", detail: "Etsy-only rule.", score: null };
         }
+        const pass = Boolean(ctx.etsy?.hasPolicy);
         return {
-          status: ctx.etsy?.hasPolicy ? "pass" : "warn",
+          status: pass ? "pass" : "warn",
           impact: "medium",
-          detail: "Policy completeness strengthens transactional trust."
+          detail: "Policy completeness strengthens transactional trust.",
+          score: scoreFromStatus(pass ? "pass" : "warn")
         };
       }
     },
@@ -367,13 +468,14 @@ function getRuleLibrary() {
       source: "etsy",
       evaluate: (ctx) => {
         if (ctx.platform !== "etsy") {
-          return { status: "locked", impact: "low", detail: "Etsy-only rule." };
+          return { status: "locked", impact: "low", detail: "Etsy-only rule.", score: null };
         }
-        const count = ctx.etsy?.listingCount ?? 0;
+        const count = ctx.etsy?.listingCount != null ? ctx.etsy.listingCount : 0;
         return {
           status: count >= 10 ? "pass" : count >= 3 ? "warn" : "fail",
           impact: count < 3 ? "high" : "low",
-          detail: `${count} active listings detected.`
+          detail: `${count} active listings detected.`,
+          score: count >= 10 ? 100 : count >= 3 ? 75 : 50
         };
       }
     }
@@ -387,40 +489,47 @@ function evaluateRules(context) {
       ...rule,
       status: outcome.status,
       impact: outcome.impact,
-      detail: outcome.detail
+      detail: outcome.detail,
+      score: outcome.score != null ? outcome.score : scoreFromStatus(outcome.status)
     };
   });
 
   const pillarScores = { search: 0, ai: 0, ux: 0 };
+  const pillarSignal = { search: false, ai: false, ux: false };
 
   PILLARS.forEach((pillar) => {
-    const relevant = rules.filter((rule) => rule.pillar === pillar.key && SCORE_MAP[rule.status] !== null);
+    const relevant = rules.filter((rule) => rule.pillar === pillar.key && rule.score != null);
     if (relevant.length === 0) {
-      pillarScores[pillar.key] = 0;
+      pillarScores[pillar.key] = 50;
       return;
     }
-    const total = relevant.reduce((sum, rule) => sum + SCORE_MAP[rule.status], 0);
-    pillarScores[pillar.key] = Math.round((total / relevant.length) * 100);
+    const total = relevant.reduce((sum, rule) => sum + rule.score, 0);
+    pillarScores[pillar.key] = Math.round(total / relevant.length);
+    pillarSignal[pillar.key] = true;
   });
 
-  const overallScore = Math.round(
-    (pillarScores.search * 0.4) +
-    (pillarScores.ai * 0.4) +
-    (pillarScores.ux * 0.2)
-  );
+  const hasSignal = Object.values(pillarSignal).some(Boolean);
+  const totalWeight = PILLARS.reduce((sum, pillar) => sum + pillar.weight, 0);
+  const overallScore = hasSignal
+    ? Math.round(
+      PILLARS.reduce((sum, pillar) => {
+        return sum + (pillarScores[pillar.key] * (pillar.weight / totalWeight));
+      }, 0)
+    )
+    : 50;
 
   const topFixes = rules
     .filter((rule) => rule.status === "fail" || rule.status === "warn")
     .sort((a, b) => IMPACT_PRIORITY[b.impact] - IMPACT_PRIORITY[a.impact])
     .slice(0, 8);
 
-  return { rules, pillarScores, overallScore, topFixes };
+  return { rules, pillarScores, overallScore, topFixes, hasSignal };
 }
 
 function verdictFromScore(score) {
-  if (score >= 80) return "Strong Visibility";
-  if (score >= 60) return "Moderate Visibility";
-  if (score >= 40) return "Limited Visibility";
+  if (score >= 70) return "Strong Visibility";
+  if (score >= 50) return "Moderate Visibility";
+  if (score >= 30) return "Limited Visibility";
   return "Critical Visibility Risk";
 }
 
@@ -511,6 +620,32 @@ function applyPillarBars(pillarScores) {
   uxFill.style.width = `${pillarScores.ux}%`;
 }
 
+
+function renderPillarBreakdown(evaluation) {
+  return `
+    <div class="pillar-breakdown-grid">
+      <article class="pillar-card">
+        <h3>Search Foundation</h3>
+        <p class="pillar-score">${evaluation.pillarScores.search}/100</p>
+        <div class="pillar-meter"><div class="pillar-fill fill-search"></div></div>
+        <p class="pillar-copy">Technical health, crawlability, indexability, and site structure.</p>
+      </article>
+      <article class="pillar-card">
+        <h3>AI Visibility</h3>
+        <p class="pillar-score">${evaluation.pillarScores.ai}/100</p>
+        <div class="pillar-meter"><div class="pillar-fill fill-ai"></div></div>
+        <p class="pillar-copy">Machine-readable signals, structured context, and indexing freshness.</p>
+      </article>
+      <article class="pillar-card">
+        <h3>UX Instrumentation</h3>
+        <p class="pillar-score">${evaluation.pillarScores.ux}/100</p>
+        <div class="pillar-meter"><div class="pillar-fill fill-ux"></div></div>
+        <p class="pillar-copy">Accessibility and interaction quality on modern devices.</p>
+      </article>
+    </div>
+  `;
+}
+
 function renderResults(resolved, evaluation) {
   const score = evaluation.overallScore;
   const verdict = verdictFromScore(score);
@@ -546,29 +681,7 @@ function renderResults(resolved, evaluation) {
           </div>
         </div>
       </article>
-
-      <article class="pillar-card">
-        <h3>Search Foundation</h3>
-        <p class="pillar-score">${evaluation.pillarScores.search}/100</p>
-        <div class="pillar-meter"><div class="pillar-fill fill-search"></div></div>
-        <p class="pillar-copy">Technical health, crawlability, indexability, and site structure.</p>
-      </article>
-
-      <article class="pillar-card">
-        <h3>AI Visibility</h3>
-        <p class="pillar-score">${evaluation.pillarScores.ai}/100</p>
-        <div class="pillar-meter"><div class="pillar-fill fill-ai"></div></div>
-        <p class="pillar-copy">Machine-readable signals, structured context, and indexing freshness.</p>
-      </article>
-
-      <article class="pillar-card">
-        <h3>UX Instrumentation</h3>
-        <p class="pillar-score">${evaluation.pillarScores.ux}/100</p>
-        <div class="pillar-meter"><div class="pillar-fill fill-ux"></div></div>
-        <p class="pillar-copy">Accessibility and interaction quality on modern devices.</p>
-      </article>
     </div>
-
     <article class="fixes-card">
       <div class="fixes-head">
         <h2>Top Fixes by Impact</h2>
@@ -576,7 +689,6 @@ function renderResults(resolved, evaluation) {
       </div>
       <ol class="fixes-list">${renderFixes(evaluation.topFixes)}</ol>
     </article>
-
     <section class="rule-grid">
       <article class="rule-group">
         <h3>Search Foundation</h3>
@@ -591,7 +703,6 @@ function renderResults(resolved, evaluation) {
         <ul class="rule-list">${renderRuleRows(evaluation.rules, "ux")}</ul>
       </article>
     </section>
-
     <article class="upgrade-card">
       <h2>Upgrade for Continuous Monitoring</h2>
       <p>Track trendlines, benchmark competitors, and receive alerting when your visibility drops.</p>
@@ -602,30 +713,58 @@ function renderResults(resolved, evaluation) {
       </div>
     </article>
   `;
-
   animateScore(score);
-  requestAnimationFrame(() => applyPillarBars(evaluation.pillarScores));
+  // Only apply pillar bars if pillar breakdown is present
+  // (main page no longer shows pillar breakdowns)
 }
+
+// For details.html: render only the pillar breakdown from last scan
+window.renderPillarBreakdownOnly = function() {
+  const detailsSection = document.getElementById("pillar-breakdown");
+  if (!detailsSection) {
+    return;
+  }
+  let scanPayload = localStorage.getItem("visora_last_scan") || sessionStorage.getItem("visora_last_scan");
+  if (!scanPayload) {
+    detailsSection.innerHTML = '<div class="loading-panel">No scan data found. Please run a scan on the main page first.</div>';
+    return;
+  }
+  let scan;
+  try {
+    scan = JSON.parse(scanPayload);
+  } catch {
+    detailsSection.innerHTML = '<div class="error-panel">Could not parse scan data.</div>';
+    return;
+  }
+  const pillarScores = {
+    search: scan.buckets?.searchFoundation ?? 0,
+    ai: scan.buckets?.aiVisibility ?? 0,
+    ux: scan.buckets?.uxInstrumentation ?? 0
+  };
+  // Reuse pillar breakdown rendering
+  detailsSection.innerHTML = renderPillarBreakdown({ pillarScores });
+  requestAnimationFrame(() => applyPillarBars(pillarScores));
+};
 
 async function loadWebSignals(url) {
   const defaults = {
     ps: {
-      performanceScore: 0,
-      seoScore: 0,
-      accessibilityScore: 0,
-      bestPracticesScore: 0,
+      performanceScore: null,
+      seoScore: null,
+      accessibilityScore: null,
+      bestPracticesScore: null,
       lcp: null,
-      hasViewport: false,
-      hasDocTitle: false,
-      hasMetaDesc: false,
-      imagesHaveAlt: false,
-      canonicalPresent: false,
-      structuredData: false,
-      tapTargets: false,
-      linksDescriptive: false
+      hasViewport: null,
+      hasDocTitle: null,
+      hasMetaDesc: null,
+      imagesHaveAlt: null,
+      canonicalPresent: null,
+      structuredData: null,
+      tapTargets: null,
+      linksDescriptive: null
     },
-    w3c: { errorCount: 0, warningCount: 0 },
-    bing: { implemented: false, keyFileFound: false, robotsHasIndexNow: false },
+    w3c: { errorCount: null, warningCount: null },
+    bing: { implemented: null, keyFileFound: null, robotsHasIndexNow: null },
     warnings: []
   };
 
@@ -711,10 +850,14 @@ function renderLoading() {
 }
 
 function renderError(message) {
-  resultsEl.innerHTML = `<div class=\"error-panel\">Scan failed: ${escapeHtml(message)}</div>`;
+  resultsEl.innerHTML = `<div class="error-panel">Scan failed: ${escapeHtml(message)}</div>`;
 }
 
 async function runScan() {
+  if (!urlInput || !runScanBtn || !resultsEl) {
+    return;
+  }
+
   const raw = urlInput.value.trim();
   if (!raw) {
     renderError("Please enter a URL or shop identifier before scanning.");
@@ -738,7 +881,9 @@ async function runScan() {
     const evaluation = evaluateRules(context);
     evaluation.warnings = context.warnings;
 
-    sessionStorage.setItem("visora_last_scan", JSON.stringify(buildScanPayload(resolved, evaluation)));
+    const scanPayload = JSON.stringify(buildScanPayload(resolved, evaluation));
+    localStorage.setItem("visora_last_scan", scanPayload);
+    sessionStorage.setItem("visora_last_scan", scanPayload);
 
     renderResults(resolved, evaluation);
   } catch (error) {
@@ -749,19 +894,23 @@ async function runScan() {
   }
 }
 
-platformButtons.forEach((button) => {
-  button.addEventListener("click", () => setPlatform(button.dataset.platform));
-});
+const isScanPage = Boolean(runScanBtn && urlInput && resultsEl);
 
-runScanBtn.addEventListener("click", runScan);
-urlInput.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    runScan();
-  }
-});
+if (isScanPage) {
+  platformButtons.forEach((button) => {
+    button.addEventListener("click", () => setPlatform(button.dataset.platform));
+  });
+
+  runScanBtn.addEventListener("click", runScan);
+  urlInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      runScan();
+    }
+  });
+
+  setPlatform("web");
+}
 
 themeToggle?.addEventListener("click", () => {
   document.body.classList.toggle("theme-alt");
 });
-
-setPlatform("web");

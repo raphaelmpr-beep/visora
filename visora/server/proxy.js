@@ -32,6 +32,9 @@ app.use((req, res, next) => {
   // Only rate limit API endpoints, not admin endpoints
   if (req.path.startsWith("/api/")) {
     const ip = req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress;
+    if (ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1") {
+      return next();
+    }
     const rate = checkRateLimit(ip);
     if (!rate.allowed) {
       return res.status(429).json({ error: `Rate limit exceeded. Try again in ${Math.ceil(rate.retryAfter/1000/60)} min.` });
@@ -181,6 +184,10 @@ app.get("/api/pagespeed", async (req, res) => {
     const data = await r.json();
     const lhr = data.lighthouseResult;
     const cwv = data.loadingExperience?.metrics || {};
+    const auditScore = (primary, legacy) => {
+      const score = lhr?.audits?.[primary]?.score ?? lhr?.audits?.[legacy]?.score;
+      return score === 1;
+    };
     res.json({
       // Lighthouse category scores (0-1, multiply by 100 for %)
       performanceScore    : lhr?.categories?.performance?.score          ?? null,
@@ -193,14 +200,14 @@ app.get("/api/pagespeed", async (req, res) => {
       inp  : cwv?.INTERACTION_TO_NEXT_PAINT            ?? null,
       fcp  : cwv?.FIRST_CONTENTFUL_PAINT_MS            ?? null,
       // Binary Lighthouse audits used by Visora rule checks
-      hasViewport       : lhr?.audits?.viewport?.score          === 1,
-      hasDocTitle       : lhr?.audits?.document_title?.score    === 1,
-      hasMetaDesc       : lhr?.audits?.meta_description?.score  === 1,
-      imagesHaveAlt     : lhr?.audits?.image_alt?.score         === 1,
-      canonicalPresent  : lhr?.audits?.canonical?.score         === 1,
-      structuredData    : lhr?.audits?.structured_data?.score   === 1,
-      tapTargets        : lhr?.audits?.tap_targets?.score       === 1,
-      linksDescriptive  : lhr?.audits?.link_text?.score         === 1,
+      hasViewport       : auditScore("viewport", "viewport"),
+      hasDocTitle       : auditScore("document-title", "document_title"),
+      hasMetaDesc       : auditScore("meta-description", "meta_description"),
+      imagesHaveAlt     : auditScore("image-alt", "image_alt"),
+      canonicalPresent  : auditScore("canonical", "canonical"),
+      structuredData    : auditScore("structured-data", "structured_data"),
+      tapTargets        : auditScore("tap-targets", "tap_targets"),
+      linksDescriptive  : auditScore("link-text", "link_text"),
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

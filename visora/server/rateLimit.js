@@ -1,6 +1,6 @@
 // rateLimit.js — Simple in-memory rate limiter per IP
 const rateLimits = {};
-const DEFAULT_LIMIT = 5; // default daily limit
+const DEFAULT_LIMIT = 100; // default daily limit
 const WINDOW_MS = 24 * 60 * 60 * 1000; // 24 hours
 let rateLimitEnabled = true;
 

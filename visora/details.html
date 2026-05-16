@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visora Backend Details</title>
+  <meta name="description" content="Inspect Visora pillar breakdown and backend visibility scoring details from your latest scan.">
+  <link rel="canonical" href="https://raphaelmpr-beep.github.io/visora/details.html">
+  <link rel="stylesheet" href="assets/css/styles.css">
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": "Visora Backend Details",
+      "url": "https://raphaelmpr-beep.github.io/visora/details.html",
+      "description": "Pillar-level diagnostics for website AI visibility performance."
+    }
+  </script>
+</head>
+<body>
+  <header>
+    <h1>Backend Details: Pillar Breakdown</h1>
+    <nav>
+      <a href="index.html">Main Page</a>
+    </nav>
+  </header>
+  <main>
+    <section id="pillar-breakdown">
+      <!-- Pillar breakdown will be rendered here -->
+    </section>
+  </main>
+    <script src="assets/js/app.js?v=8"></script>
+  <script>
+    // On details page, render only the pillar breakdowns
+    document.addEventListener('DOMContentLoaded', function() {
+      if (window.renderPillarBreakdownOnly) {
+        window.renderPillarBreakdownOnly();
+      }
+    });
+  </script>
+</body>
+</html>
