@@ -13,6 +13,7 @@ async function apiGet(path) {
     return r.json();
 }
 
+
 async function fetchJson(url) {
     const r = await fetch(url);
     if (!r.ok) {
@@ -27,6 +28,7 @@ async function fetchJson(url) {
     return r.json();
 }
 
+
 async function fetchHealth() {
     return apiGet(`/health`);
 }
@@ -34,10 +36,9 @@ async function fetchPageSpeed(url) {
     const apiKey = window.VISORA_PAGESPEED_API_KEY?.trim();
     if (apiKey) {
           const endpoint =
-                  `https://www.googleapis.com/pagespeedonline/v5/runPagespeed` +
-                  `?url=${encodeURIComponent(url)}` +
-                  `&strategy=mobile&category=performance&category=seo&category=accessibility&category=best-practices` +
-                  `&key=${encodeURIComponent(apiKey)}`;
+                  "https://fecaarqxtytaxkhmlngg.supabase.co/functions/v1/pagespeed-proxy" +
+      `?url=${encodeURIComponent(url)}` +
+      `&key=${encodeURIComponent(apiKey)}`;
           return fetchJson(endpoint).then((data) => {
                   const lhr = data.lighthouseResult;
                   const cwv = data.loadingExperience?.metrics || {};
@@ -62,6 +63,7 @@ async function fetchPageSpeed(url) {
           });
     }
 
+
   return apiGet(`/pagespeed?url=${encodeURIComponent(url)}`);
 }
 async function fetchW3C(url) {
@@ -69,10 +71,3 @@ async function fetchW3C(url) {
 }
 async function fetchBingIndexNow(url) {
     return apiGet(`/bing-indexnow?url=${encodeURIComponent(url)}`);
-}
-async function fetchEtsyShop(shopId) {
-    return apiGet(`/etsy-shop?shopId=${encodeURIComponent(shopId)}`);
-}
-async function fetchShopifyStore(shop) {
-    return apiGet(`/shopify-store?shop=${encodeURIComponent(shop)}`);
-}
